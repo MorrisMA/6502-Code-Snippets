@@ -1,0 +1,238 @@
+AS65 Assembler for R6502 [1.42].  Copyright 1994-2007, Frank A. Kingswood                                                 Page    1
+----------------------------------------------------------- smul8x8.a65 -----------------------------------------------------------
+
+---------------------------------------------------------- Symbol Table -----------------------------------------------------------
+
+              Symbol   Value        Decimal
+
+               Add_M : $f81d          63517
+                Exit : $f8aa          63658
+              Init_C : $f813          63507
+              Init_M : $f80c          63500
+              Init_P : $f807          63495
+          Last_Addrs : $f8b6          63670
+                Loop : $f818          63512
+                 Nxt : $f83d          63549
+                Nxt1 : $f855          63573
+                Nxt2 : $f883          63619
+                Nxt3 : $f89b          63643
+              Shift1 : $f84b          63563
+              Shift2 : $f891          63633
+               Start : $f800          63488
+               Sub_M : $f863          63587
+          __65SC02__ : $0001              1
+
+16 labels used
+
+193 lines read, no errors in pass 1.
+AS65 Assembler for R6502 [1.42].  Copyright 1994-2007, Frank A. Kingswood                                                 Page    2
+---------------------------------------------------- SMul8x8.a65 Test Program -----------------------------------------------------
+
+                             ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                             ;;
+                             ;;  Copyright 2012 by Michael A. Morris, dba M. A. Morris & Associates
+                             ;;
+                             ;;  All rights reserved. The source code contained herein is publicly released
+                             ;;  under the terms and conditions of the GNU Lesser Public License. No part of
+                             ;;  this source code may be reproduced or transmitted in any form or by any
+                             ;;  means, electronic or mechanical, including photocopying, recording, or any
+                             ;;  information storage and retrieval system in violation of the license under
+                             ;;  which the source code is released.
+                             ;;
+                             ;;  The souce code contained herein is free; it may be redistributed and/or 
+                             ;;  modified in accordance with the terms of the GNU Lesser General Public
+                             ;;  License as published by the Free Software Foundation; either version 2.1 of
+                             ;;  the GNU Lesser General Public License, or any later version.
+                             ;;
+                             ;;  The souce code contained herein is freely released WITHOUT ANY WARRANTY;
+                             ;;  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+                             ;;  PARTICULAR PURPOSE. (Refer to the GNU Lesser General Public License for
+                             ;;  more details.)
+                             ;;
+                             ;;  A copy of the GNU Lesser General Public License should have been received
+                             ;;  along with the source code contained herein; if not, a copy can be obtained
+                             ;;  by writing to:
+                             ;;
+                             ;;  Free Software Foundation, Inc.
+                             ;;  51 Franklin Street, Fifth Floor
+                             ;;  Boston, MA  02110-1301 USA
+                             ;;
+                             ;;  Further, no use of this source code is permitted in any form or means
+                             ;;  without inclusion of this banner prominently in any derived works. 
+                             ;;
+                             ;;  Michael A. Morris
+                             ;;  Huntsville, AL
+                             ;;
+                             ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                             ;;
+                             ;; #------------------------------------------------------------------------#
+                             ;; |                                                                        |
+                             ;; |   SMul8x8.A65                                                          |
+                             ;; |                                                                        |
+                             ;; |   Test for stack-based 8x8 Booth multiplication code snippet           |       
+                             ;; |                                                                        |
+                             ;; |   Copyright 2012, Michael A. Morris                                    |
+                             ;; |                                                                        |
+                             ;; #------------------------------------------------------------------------#
+                             ;;
+                             ;; File created 22-Dec-2012
+                             ;;
+                                     title   "SMul8x8.a65 Test Program"
+                             ;;
+                                     code
+f800 =                               org $F800
+                                     
+f800 : a27f             [ 2] Start:  ldx #127
+AS65 Assembler for R6502 [1.42].  Copyright 1994-2007, Frank A. Kingswood                                                 Page    3
+---------------------------------------------------- SMul8x8.a65 Test Program -----------------------------------------------------
+
+f802 : a0aa             [ 2]         ldy #170
+f804 : a9ff             [ 2]         lda #-1
+                             
+f806 : 48               [ 3]         pha
+                             
+f807 : a900             [ 2] Init_P: lda #0
+f809 : 48               [ 3]         pha
+f80a : 48               [ 3]         pha
+f80b : 48               [ 3]         pha
+                             
+f80c : 8a               [ 2] Init_M: txa                     ;; push multiplicand onto stack
+f80d : 48               [ 3]         pha
+                             
+f80e : 0a               [ 2]         asl a                   ;; generate guard bit for sign of multiplicand
+f80f : a900             [ 2]         lda #0
+f811 : 2a               [ 2]         rol a
+f812 : 48               [ 3]         pha                     ;; push multiplicand sign bit guard onto stack
+                             
+f813 : a908             [ 2] Init_C: lda #8                  ;; push iteration counter
+f815 : 48               [ 3]         pha
+                             
+f816 : ba               [ 2]         tsx                     ;; capture S in X
+                             
+f817 : 18               [ 2]         clc                     ;; initialize Booth recoding guard bit
+                             
+f818 : 98               [ 2] Loop:   tya                     ;; rotate multiplier
+f819 : 6a               [ 2]         ror a                   ;; Booth into M[7], M[0] into C
+f81a : a8               [ 2]         tay                     ;; save for next iteration
+                             
+f81b : 1046             [ 3]         bpl Sub_M               ;; check status of Booth guard bit
+                             
+f81d : b02c             [ 3] Add_M:  bcs Shift1              ;; Booth = 1; check multiplier lsb (C)
+                                                             ;; C = 0
+f81f : bd0501           [ 4]         lda $105,x              ;; Booth = 1, M[0] = 0; add-shift multiplicand 
+f822 : 7d0301           [ 4]         adc $103,x              ;; add multiplicand to product[1]
+f825 : 9d0501           [ 5]         sta $105,x              ;; save new product[1]
+f828 : bd0401           [ 4]         lda $104,x              ;; load product[2]
+f82b : 7d0201           [ 4]         adc $102,x              ;; add multiplicand sign extension, propagate C
+f82e : 2901             [ 2]         and #$01                ;; truncate to just sign extension bit
+f830 : 9d0401           [ 5]         sta $104,x              ;; save new product[2]
+                             
+f833 : 5e0401           [ 6]         lsr $104,x              ;; shift product right arithmetically
+f836 : 9005             [ 3]         bcc Nxt                 ;; if product[2].1 = 0, skip, else set sign ext
+f838 : a901             [ 2]         lda #1                  ;;    restore negative sign extension
+f83a : 9d0401           [ 5]         sta $104,x              ;;    save restored sign extension in product[2]
+f83d : 7e0501           [ 6] Nxt:    ror $105,x              ;; continue right shift
+f840 : 7e0601           [ 6]         ror $106,x              ;; continue right shift
+                             
+f843 : 18               [ 2]         clc                     ;; set C to value on entry to this code seg
+                             
+f844 : de0101           [ 6]         dec $101,x              ;; decrement iteration counter
+f847 : d0cf             [ 3]         bne Loop                ;; if(Cntr) loop 
+                             
+f849 : 905f             [ 3]         bcc Exit                ;; jump to routine exit 
+                             
+AS65 Assembler for R6502 [1.42].  Copyright 1994-2007, Frank A. Kingswood                                                 Page    4
+---------------------------------------------------- SMul8x8.a65 Test Program -----------------------------------------------------
+
+f84b : 5e0401           [ 6] Shift1: lsr $104,x              ;; shift product right arithmetically
+f84e : 9005             [ 3]         bcc Nxt1                ;; if product[2].1 = 0, skip, else set sign ext
+f850 : a901             [ 2]         lda #1                  ;;    restore negative sign extension
+f852 : 9d0401           [ 5]         sta $104,x              ;;    save restored sign extension in product[2]
+f855 : 7e0501           [ 6] Nxt1:   ror $105,x              ;; continue right shift
+f858 : 7e0601           [ 6]         ror $106,x              ;; continue right shift
+                             
+f85b : 38               [ 2]         sec                     ;; set C to value on entry to this code seg                     
+                             
+f85c : de0101           [ 6]         dec $101,x              ;; decrement iteration counter
+f85f : d0b7             [ 3]         bne Loop                ;; if(Cntr) loop 
+                             
+f861 : b047             [ 3]         bcs Exit                ;; jump to routine exit 
+                             
+f863 : 902c             [ 3] Sub_M:  bcc Shift2              ;; Booth = 0; check multiplier lsb (C)
+                                                             ;; C = 1
+f865 : bd0501           [ 4]         lda $105,x              ;; Booth = 1, M[0] = 0; sub-shift multiplicand 
+f868 : fd0301           [ 4]         sbc $103,x              ;; sub multiplicand to product[1]
+f86b : 9d0501           [ 5]         sta $105,x              ;; save new product[1]
+f86e : bd0401           [ 4]         lda $104,x              ;; load product[2]
+f871 : fd0201           [ 4]         sbc $102,x              ;; sub multiplicand sign extension, propagate C
+f874 : 2901             [ 2]         and #$01                ;; truncate to just sign extension bit
+f876 : 9d0401           [ 5]         sta $104,x              ;; save new product[2]
+                             
+f879 : 5e0401           [ 6]         lsr $104,x              ;; shift product right arithmetically
+f87c : 9005             [ 3]         bcc Nxt2                ;; if product[2].1 = 0, skip, else set sign ext
+f87e : a901             [ 2]         lda #1                  ;;    restore negative sign extension
+f880 : 9d0401           [ 5]         sta $104,x              ;;    save restored sign extension in product[2]
+f883 : 7e0501           [ 6] Nxt2:   ror $105,x              ;; continue right shift
+f886 : 7e0601           [ 6]         ror $106,x              ;; continue right shift
+                             
+f889 : 38               [ 2]         sec
+                             
+f88a : de0101           [ 6]         dec $101,x              ;; decrement iteration counter
+f88d : d089             [ 3]         bne Loop                ;; if(Cntr) loop 
+                             
+f88f : b019             [ 3]         bcs Exit                ;; jump to routine exit 
+                             
+f891 : 5e0401           [ 6] Shift2: lsr $104,x              ;; shift product right arithmetically
+f894 : 9005             [ 3]         bcc Nxt3                ;; if product[2].1 = 0, skip, else set sign ext
+f896 : a901             [ 2]         lda #1                  ;;    restore negative sign extension
+f898 : 9d0401           [ 5]         sta $104,x              ;;    save restored sign extension in product[2]
+f89b : 7e0501           [ 6] Nxt3:   ror $105,x              ;; continue right shift
+f89e : 7e0601           [ 6]         ror $106,x              ;; continue right shift
+                             
+f8a1 : 18               [ 2]         clc
+                             
+f8a2 : de0101           [ 6]         dec $101,x              ;; decrement iteration counter
+f8a5 : f003             [ 3]         beq Exit                ;; if(Cntr == 0) Exit else loop 
+                                     
+f8a7 : 4c18f8           [ 3]         jmp Loop
+                             
+f8aa : 68               [ 4] Exit:   pla                     ;; pull loop counter off stack
+f8ab : 68               [ 4]         pla                     ;; pull multiplicand off stack
+f8ac : 68               [ 4]         pla
+AS65 Assembler for R6502 [1.42].  Copyright 1994-2007, Frank A. Kingswood                                                 Page    5
+---------------------------------------------------- SMul8x8.a65 Test Program -----------------------------------------------------
+
+                             
+f8ad : 68               [ 4]         pla                     ;; pull product sign bit extension off stack 
+                                     
+f8ae : 68               [ 4]         pla                     ;; pull MSB product off stack into X
+f8af : aa               [ 2]         tax
+                             
+f8b0 : 68               [ 4]         pla                     ;; pull LSB product off stack into Y
+f8b1 : a8               [ 2]         tay
+                             
+f8b2 : 68               [ 4]         pla                     ;; pull accumulator off the stack
+                             
+f8b3 : 4c00f8           [ 3]         jmp Start               ;; loop test program
+                             
+                             ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                             ;;
+f8b6 :                       Last_Addrs:
+                             ;;
+                             ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+                             ;;
+                             ;;  Vector Table
+                             ;;
+fffa =                       Vect_Table  org     $FFFA
+                             ;;
+fffa : 00f8                              dw      Start       ;; NMI Interrupt Vector
+fffc : 00f8                              dw      Start       ;; Reset Vector
+fffe : 00f8                              dw      Start       ;; IRQ/BRK Interrupt Vector
+                             ;;
+fffa =                                   end     Start
+                             
+No errors in pass 2.
+Wrote binary from address $f800 through $ffff.
+Total size 2048 bytes.
+Program start address is at $f800 (63488).
+

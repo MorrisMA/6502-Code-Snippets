@@ -1,0 +1,193 @@
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;  Copyright 2012 by Michael A. Morris, dba M. A. Morris & Associates
+;;
+;;  All rights reserved. The source code contained herein is publicly released
+;;  under the terms and conditions of the GNU Lesser Public License. No part of
+;;  this source code may be reproduced or transmitted in any form or by any
+;;  means, electronic or mechanical, including photocopying, recording, or any
+;;  information storage and retrieval system in violation of the license under
+;;  which the source code is released.
+;;
+;;  The souce code contained herein is free; it may be redistributed and/or 
+;;  modified in accordance with the terms of the GNU Lesser General Public
+;;  License as published by the Free Software Foundation; either version 2.1 of
+;;  the GNU Lesser General Public License, or any later version.
+;;
+;;  The souce code contained herein is freely released WITHOUT ANY WARRANTY;
+;;  without even the implied warranty of MERCHANTABILITY or FITNESS FOR A
+;;  PARTICULAR PURPOSE. (Refer to the GNU Lesser General Public License for
+;;  more details.)
+;;
+;;  A copy of the GNU Lesser General Public License should have been received
+;;  along with the source code contained herein; if not, a copy can be obtained
+;;  by writing to:
+;;
+;;  Free Software Foundation, Inc.
+;;  51 Franklin Street, Fifth Floor
+;;  Boston, MA  02110-1301 USA
+;;
+;;  Further, no use of this source code is permitted in any form or means
+;;  without inclusion of this banner prominently in any derived works. 
+;;
+;;  Michael A. Morris
+;;  Huntsville, AL
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;; #------------------------------------------------------------------------#
+;; |                                                                        |
+;; |   SMul8x8.A65                                                          |
+;; |                                                                        |
+;; |   Test for stack-based 8x8 Booth multiplication code snippet           |       
+;; |                                                                        |
+;; |   Copyright 2012, Michael A. Morris                                    |
+;; |                                                                        |
+;; #------------------------------------------------------------------------#
+;;
+;; File created 22-Dec-2012
+;;
+        title   "SMul8x8.a65 Test Program"
+;;
+        code
+        org $F800
+        
+Start:  ldx #127
+        ldy #170
+        lda #-1
+
+        pha
+
+Init_P: lda #0
+        pha
+        pha
+        pha
+
+Init_M: txa                     ;; push multiplicand onto stack
+        pha
+
+        asl a                   ;; generate guard bit for sign of multiplicand
+        lda #0
+        rol a
+        pha                     ;; push multiplicand sign bit guard onto stack
+
+Init_C: lda #8                  ;; push iteration counter
+        pha
+
+        tsx                     ;; capture S in X
+
+        clc                     ;; initialize Booth recoding guard bit
+
+Loop:   tya                     ;; rotate multiplier
+        ror a                   ;; Booth into M[7], M[0] into C
+        tay                     ;; save for next iteration
+
+        bpl Sub_M               ;; check status of Booth guard bit
+
+Add_M:  bcs Shift1              ;; Booth = 1; check multiplier lsb (C)
+                                ;; C = 0
+        lda $105,x              ;; Booth = 1, M[0] = 0; add-shift multiplicand 
+        adc $103,x              ;; add multiplicand to product[1]
+        sta $105,x              ;; save new product[1]
+        lda $104,x              ;; load product[2]
+        adc $102,x              ;; add multiplicand sign extension, propagate C
+        and #$01                ;; truncate to just sign extension bit
+        sta $104,x              ;; save new product[2]
+
+        lsr $104,x              ;; shift product right arithmetically
+        bcc Nxt                 ;; if product[2].1 = 0, skip, else set sign ext
+        lda #1                  ;;    restore negative sign extension
+        sta $104,x              ;;    save restored sign extension in product[2]
+Nxt:    ror $105,x              ;; continue right shift
+        ror $106,x              ;; continue right shift
+
+        clc                     ;; set C to value on entry to this code seg
+
+        dec $101,x              ;; decrement iteration counter
+        bne Loop                ;; if(Cntr) loop 
+
+        bcc Exit                ;; jump to routine exit 
+
+Shift1: lsr $104,x              ;; shift product right arithmetically
+        bcc Nxt1                ;; if product[2].1 = 0, skip, else set sign ext
+        lda #1                  ;;    restore negative sign extension
+        sta $104,x              ;;    save restored sign extension in product[2]
+Nxt1:   ror $105,x              ;; continue right shift
+        ror $106,x              ;; continue right shift
+
+        sec                     ;; set C to value on entry to this code seg                     
+
+        dec $101,x              ;; decrement iteration counter
+        bne Loop                ;; if(Cntr) loop 
+
+        bcs Exit                ;; jump to routine exit 
+
+Sub_M:  bcc Shift2              ;; Booth = 0; check multiplier lsb (C)
+                                ;; C = 1
+        lda $105,x              ;; Booth = 1, M[0] = 0; sub-shift multiplicand 
+        sbc $103,x              ;; sub multiplicand to product[1]
+        sta $105,x              ;; save new product[1]
+        lda $104,x              ;; load product[2]
+        sbc $102,x              ;; sub multiplicand sign extension, propagate C
+        and #$01                ;; truncate to just sign extension bit
+        sta $104,x              ;; save new product[2]
+
+        lsr $104,x              ;; shift product right arithmetically
+        bcc Nxt2                ;; if product[2].1 = 0, skip, else set sign ext
+        lda #1                  ;;    restore negative sign extension
+        sta $104,x              ;;    save restored sign extension in product[2]
+Nxt2:   ror $105,x              ;; continue right shift
+        ror $106,x              ;; continue right shift
+
+        sec
+
+        dec $101,x              ;; decrement iteration counter
+        bne Loop                ;; if(Cntr) loop 
+
+        bcs Exit                ;; jump to routine exit 
+
+Shift2: lsr $104,x              ;; shift product right arithmetically
+        bcc Nxt3                ;; if product[2].1 = 0, skip, else set sign ext
+        lda #1                  ;;    restore negative sign extension
+        sta $104,x              ;;    save restored sign extension in product[2]
+Nxt3:   ror $105,x              ;; continue right shift
+        ror $106,x              ;; continue right shift
+
+        clc
+
+        dec $101,x              ;; decrement iteration counter
+        beq Exit                ;; if(Cntr == 0) Exit else loop 
+        
+        jmp Loop
+
+Exit:   pla                     ;; pull loop counter off stack
+        pla                     ;; pull multiplicand off stack
+        pla
+
+        pla                     ;; pull product sign bit extension off stack 
+        
+        pla                     ;; pull MSB product off stack into X
+        tax
+
+        pla                     ;; pull LSB product off stack into Y
+        tay
+
+        pla                     ;; pull accumulator off the stack
+
+        jmp Start               ;; loop test program
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+Last_Addrs:
+;;
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+;;
+;;  Vector Table
+;;
+Vect_Table  org     $FFFA
+;;
+            dw      Start       ;; NMI Interrupt Vector
+            dw      Start       ;; Reset Vector
+            dw      Start       ;; IRQ/BRK Interrupt Vector
+;;
+            end     Start
