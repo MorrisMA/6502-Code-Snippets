@@ -1,4 +1,4 @@
-Booth Multipliers in Verilog 2001
+6502 Code Snippets
 =================================
 
 Copyright (C) 2012, Michael A. Morris <morrisma@mchsi.com>.
