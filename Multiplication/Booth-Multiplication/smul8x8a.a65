@@ -213,10 +213,9 @@ TV_End:
 ;;  hold the sign extension bit for the product and for the multiplicand.
 ;;
 ;;  The required operation, add+shift, subtract+shift, or shift-only, is deter-
-;;  mined using an extension to the multiplier. Since that extension would re-
-;;  quire an additional register, and there are none to spare for just a single
-;;  bit. Further, the objective is a subroutine without page zero or data memory
-;;  allocations. Thus, a virtual 9-bit register is constructed for the multi-
+;;  mined using an extension to the multiplier. Extending the multiplier would
+;;  require an additional register. Since, there are none to spare, especially
+;;  for a single bit, a virtual 9-bit register is constructed for the multi-
 ;;  plier using the Y register to hold 8 bits, and the C flag for the other.
 ;;
 ;;  At the start of the loop, the Booth algorithm initializes the Booth multi-
